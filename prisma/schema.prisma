@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Endpoint {
+  id           String        @id @default(uuid())
+  name         String
+  url          String
+  secret       String        // e.g. whsec_...
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  deliveryLogs DeliveryLog[]
+  dlqEvents    DlqEvent[]
+
+  @@index([createdAt])
+}
+
+model DeliveryLog {
+  id           String   @id @default(uuid())
+  eventId      String
+  endpointId   String
+  eventType    String
+  sourceOrigin String   @default("internal-service")
+  payload      Json
+  status       String   // SUCCESS | FAILED | DLQ
+  httpStatus   Int?
+  latencyMs    Int
+  attempt      Int
+  createdAt    DateTime @default(now())
+
+  endpoint     Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId, createdAt])
+  @@index([eventId])
+}
+
+model DlqEvent {
+  id           String   @id @default(uuid())
+  eventId      String
+  endpointId   String
+  eventType    String
+  sourceOrigin String   @default("internal-service")
+  payload      Json
+  errorReason  String
+  replayed     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  endpoint     Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId, createdAt])
+  @@index([replayed])
+}
